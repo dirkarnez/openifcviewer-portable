@@ -1,0 +1,42 @@
+name: portable-release-actions-workflow
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - 'c*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      
+jobs:
+  build:
+    name: Create Release
+    runs-on: windows-latest
+    env:
+      targetZip: openifcviewer-portable-${{ github.ref_name }}.zip
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: lessmsi 
+        shell: cmd
+        run: | 
+          curl https://github.com/activescott/lessmsi/releases/download/v1.10.0/lessmsi-v1.10.0.zip -L --output lessmsi.zip && 7z.exe x lessmsi.zip -o"lessmsi"
+          
+      - shell: cmd
+        run: |
+          .\lessmsi\lessmsi.exe x "OpenIFCViewer_QT6_vc16_amd64dll_24.8.msi" "installation\"
+          
+      - shell: cmd
+        run: xcopy /H /Y /C "OpenIFCViewer.exe.Portable.cmd" "installation\SourceDir"
+          
+      - name: Archive Release
+        uses: thedoctor0/zip-release@master
+        with:
+          type: 'zip'
+          directory: "installation/SourceDir"
+          filename: "${{ env.targetZip }}"
+          
+      - name: Release prebuilt
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "installation/SourceDir/${{ env.targetZip }}"
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
